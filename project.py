@@ -82,7 +82,7 @@ data['seniority'] = data['seniority'].astype(np.int64)
 
 
 def in_rate(t):
-    return pow((1 + up_salary_rate), t + 0.5) / pow((1 + assumption['rate'][t]), t + 0.5)
+    return pow((1 + up_salary_rate), t + 0.5) / pow((1 + assumption['rate'][t+1]), t + 0.5)
 
 
 def leftToWork(g,age):
@@ -97,36 +97,49 @@ def printData(row):
     mainFunc(leftToWork(row[3],row[15]),row)
 
 
-def left():
-    pass
+
+def dead(t, row):
+    return row[6]*row[16]*(1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
 
 
-def mainFunc(time,row):
-    '''
-     sum=0
-    for i in range(time):
-        sum+=dead()+fired()
-    sum2=0
-    for i in range(time):
-        sum+=left()
-    return salery*vetec*(sum+sum2)
-    '''
-    sum = 0
-    for i in range(time):
-        sum += left(row)
-    print("finish row")
 
-print(fire_rate)
+def fired(t, row):
+    return row[6]*row[16]*(1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3])* to_die_next_year(t, row[15], row[3])
 
 def left(row):
     return leave_rate[row[15]]+row[9]
 
+# to die next year at the age : age + t
+def to_die_next_year(t, age, gender):
+    if 17 < age + t < 111:
+        if gender in ['M', 'm']:
+            return manDeathTable['q(x)'][age + t + 1]
+        if gender in ['F', 'f']:
+            return womanDeathTable['q(x)'][age + t + 1]
+    raise Exception("cannot determine the gender")
+
+# to be alive from age to age + t
+def tpx(t, age, gender):
+    if gender in ['M', 'm']:
+        return 1 - (manDeathTable['L(x)'][age] - manDeathTable['L(x)'][age + t]) / manDeathTable['L(x)'][age]
+    if gender in ['F', 'f']:
+        return 1 - (womanDeathTable['L(x)'][age] - womanDeathTable['L(x)'][age + t]) / womanDeathTable['L(x)'][age]
+
+
+def mainFunc(time,row):
+
+    sum = 0
+    for i in range(time):
+        sum += left(row) + fired(i, row) + dead(i, row)
+    print(sum)
+    print("finish row")
+
+
+
+
+
 data.apply(lambda x: printData(x.tolist()), axis=1)
 
-
-# new try to make the equsion
-def t(t, age, sex, self_passion):
-    return in_rate(t) * fire_rate[age] * 1 + in_rate(t) * tpx(t, age, sex) * 1 + leave_rate[age] * self_passion
 
 
 def ribit_deribit(A0, i, t):
@@ -148,31 +161,11 @@ def SerialPresentValue(Ai, i, t):
     return sum
 
 
-# to be alive from age to age + t
-def tpx(t, age, gender):
-    if gender in ['M', 'm']:
-        return 1 - (manDeathTable['L(x)'][age] - manDeathTable['L(x)'][age + t]) / manDeathTable['L(x)'][age]
-    if gender in ['F', 'f']:
-        return 1 - (womanDeathTable['L(x)'][age] - womanDeathTable['L(x)'][age + t]) / womanDeathTable['L(x)'][age]
-
-
-# to die next year at the age : age + t
-def to_die_next_year(t, age, gender):
-    if 17 < age + t < 111:
-        if gender in ['M', 'm']:
-            return manDeathTable['q(x)'][age + t + 1]
-        if gender in ['F', 'f']:
-            return womanDeathTable['q(x)'][age + t + 1]
-    raise Exception("cannot determine the gender")
-
-
-def dead(salary,seniority,t, age, gender, parentage,row):
-    return salary*seniority*(1 - parentage) * in_rate(t) * tpx(t, age, gender) * to_die_next_year(t, age, gender)
 
 
 
-def fired(salary,seniority,t, age, gender, parentage,row):
-    return salary*seniority*(1 - parentage) * in_rate(t) * tpx(t, age, gender) * to_die_next_year(t, age, gender)
+
+
 
 
 
