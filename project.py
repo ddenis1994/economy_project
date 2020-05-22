@@ -82,32 +82,38 @@ data['seniority'] = data['seniority'].astype(np.int64)
 
 
 def in_rate(t):
-    return pow((1 + up_salary_rate), t + 0.5) / pow((1 + assumption['rate'][t+1]), t + 0.5)
+    return pow((1 + up_salary_rate), t + 0.5) / pow((1 + assumption['rate'][t + 1]), t + 0.5)
 
 
-def leftToWork(g,age):
+def leftToWork(g, age):
     if g in ['M', 'm']:
-        return 67-age
+        return 67 - age
     if g in ['F', 'f']:
-        return 64-age
+        return 64 - age
 
 
+# def printData(row):
+#     mainFunc(leftToWork(row[3], row[15]), row)
 
-def printData(row):
-    mainFunc(leftToWork(row[3],row[15]),row)
 
+def toRemainInWork(row, t):
+    if t != 0:
+        return 1 - fire_rate[row[15] + t] - leave_rate[row[15] + t] - to_die_next_year(t, row[15], row[3])
+    else:
+        return 1
 
 
 def dead(t, row):
-    return row[6]*row[16]*(1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
-
+    return row[6] * row[16] * (1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
 
 
 def fired(t, row):
-    return row[6]*row[16]*(1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3])* to_die_next_year(t, row[15], row[3])
+    return row[6] * row[16] * (1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
+
 
 def left(row):
-    return leave_rate[row[15]]+row[9]
+    return leave_rate[row[15]] + row[9] * toRemainInWork(row)
+
 
 # to die next year at the age : age + t
 def to_die_next_year(t, age, gender):
@@ -118,6 +124,7 @@ def to_die_next_year(t, age, gender):
             return womanDeathTable['q(x)'][age + t + 1]
     raise Exception("cannot determine the gender")
 
+
 # to be alive from age to age + t
 def tpx(t, age, gender):
     if gender in ['M', 'm']:
@@ -126,20 +133,15 @@ def tpx(t, age, gender):
         return 1 - (womanDeathTable['L(x)'][age] - womanDeathTable['L(x)'][age + t]) / womanDeathTable['L(x)'][age]
 
 
-def mainFunc(time,row):
-
-    sum = 0
-    for i in range(time):
-        sum += left(row) + fired(i, row) + dead(i, row)
-    print(sum)
-    print("finish row")
-
+# def mainFunc(time, row):
+#     sum = 0
+#     for i in range(time):
+#         sum += left(row) + fired(i, row) + dead(i, row)
+#     print(sum)
+#     print("finish row")
 
 
-
-
-data.apply(lambda x: printData(x.tolist()), axis=1)
-
+# data.apply(lambda x: printData(x.tolist()), axis=1)
 
 
 def ribit_deribit(A0, i, t):
@@ -161,12 +163,97 @@ def SerialPresentValue(Ai, i, t):
     return sum
 
 
-
-
-
-
-
-
-
-
 # print(dead(0.5, i, 0.2, 18, 'F') + 2000 + fired(0.5, i, 0.2, 18, 'F'))
+
+
+# version 2
+
+def deadRate(age, g):
+    if 17 < age < 111:
+        if g in ['M', 'm']:
+            return manDeathTable['q(x)'][age + 1]
+        if g in ['F', 'f']:
+            return womanDeathTable['q(x)'][age + 1]
+    raise Exception("cannot determine the gender")
+
+
+def toRemain(age, dead):
+    return 1 - fire_rate[age] - leave_rate[age] - dead
+
+
+def to_remain_next_year(age, g):
+    return toRemain(age, deadRate(age, g))
+
+
+# p = property
+# a=age
+# g=gender
+def to_quit(p, a, g, t):
+    a += 1
+    mul = 1
+    for i in range(1, t):
+        mul *= to_remain_next_year(a + i, g)
+    return p * mul * leave_rate[a]
+
+
+'''
+last salary = ls
+seniority =s,
+salary growth rate = sg
+discount rate = d
+age = a
+gender =g
+
+'''
+
+
+# row[6] * row[16] * (1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
+def to_die(ls, sg, d, a, g, t):
+    mul = 1
+    for i in range(1, t):
+        mul *= to_remain_next_year(a + i, g)
+    return ls * mul * deadRate(a, g) * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]), t + 0.5)
+
+
+def to_fired(ls, sg, d, a, g, t):
+    mul = 1
+    for i in range(1, t):
+        mul *= to_remain_next_year(a + i, g)
+    return ls * mul * fire_rate[a] * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]), t + 0.5)
+
+
+'''
+prasange 14=p
+senority =s
+startWord =sw
+data of recive 14 prasantage =d
+'''
+
+
+def prasange(d, p, s, sw):
+    if d.year != 0:
+        long = d.year - sw.year
+    else:
+        long = 0
+    return (long * (1 - p) + (s - long))
+
+
+def mainFunc():
+    age=67
+    ageToRetire=1222
+    gender='m'
+    sum = 0
+    d = 0
+    p = prasange(datetime.datetime(2015, 10, 16), 0.75, 10, datetime.datetime(2013, 10, 16))
+    try:
+        for i in range(ageToRetire-age):
+            if i % 2 == 0:
+                d += 1
+            sum += to_quit(50000, age, gender, i) + p * to_die(12000, 0.04, d, age, gender, i) + p * to_fired(12000, 0.04, d, age, gender,i)
+    except Exception:
+        print(Exception)
+        print("error")
+    return sum
+
+
+print(mainFunc())
