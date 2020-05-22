@@ -11,10 +11,10 @@ leave_rate = {}
 fire_rate = {}
 ages = [
     [(18, 29), 0.15, 0.15],
-    [(30, 39), 0.10, 0.1],
-    [(40, 49), 0.10, 0.7],
-    [(50, 59), 0.5, 0.5],
-    [(60, 67), 0.3, 0.3]]
+    [(30, 39), 0.10, 0.10],
+    [(40, 49), 0.01, 0.07],
+    [(50, 59), 0.05, 0.05],
+    [(60, 67), 0.03, 0.03]]
 for r in ages:
     for x in range(r[0][0], r[0][1] + 1):
         leave_rate[x] = r[1]
@@ -179,6 +179,7 @@ def toRemain(age, dead):
 
 
 def to_remain_next_year(age, g):
+
     return toRemain(age, deadRate(age, g))
 
 
@@ -189,7 +190,7 @@ def to_quit(p, a, g, t):
     a += 1
     mul = 1
     for i in range(1, t):
-        mul *= to_remain_next_year(a + i, g)
+        mul =mul * to_remain_next_year(a + i, g)
     return p * mul * leave_rate[a]
 
 
@@ -227,7 +228,8 @@ data of recive 14 prasantage =d
 '''
 
 
-def prasange(d, p, s, sw):
+def prasange(sw, p, s, d):
+
     if d.year != 0:
         long = d.year - sw.year
     else:
@@ -261,7 +263,6 @@ row[16] = seniority
 
 
 def mainFunc(row):
-
     age = row[15]
     gender = row[3]
     ageToRetire = year_to_retire(age, gender)
@@ -275,8 +276,17 @@ def mainFunc(row):
     d = 0
     p = prasange(sd, p14, seniority, d14)
     try:
-        for i in range(ageToRetire - age):
-            if i % 2 == 0:
+        for i in range(ageToRetire):
+            #print(to_quit(property, age, gender, i))
+            # print( to_die(lastSalary, up_salary_rate, d, age, gender,
+            #                                                        i))
+            # print(to_fired(
+            #     lastSalary,
+            #     up_salary_rate, d,
+            #     age,
+            #     gender, i))
+            # print(p)
+            if i % 2 == 0 and i != 0:
                 d += 1
             sum += to_quit(property, age, gender, i) + p * to_die(lastSalary, up_salary_rate, d, age, gender,
                                                                   i) + p * to_fired(
@@ -290,5 +300,6 @@ def mainFunc(row):
     print(sum)
     return sum
 
-print(data.to_dict())
-#print(list(data.apply(lambda x: mainFunc(x.tolist()), axis=1)))
+
+# print(data.to_dict())
+data.apply(lambda x: mainFunc(x.tolist()), axis=1)
