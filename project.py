@@ -92,8 +92,8 @@ def leftToWork(g, age):
         return 64 - age
 
 
-# def printData(row):
-#     mainFunc(leftToWork(row[3], row[15]), row)
+def printData(row):
+    mainFunc(leftToWork(row[3], row[15]), row)
 
 
 def toRemainInWork(row, t):
@@ -139,9 +139,6 @@ def tpx(t, age, gender):
 #         sum += left(row) + fired(i, row) + dead(i, row)
 #     print(sum)
 #     print("finish row")
-
-
-# data.apply(lambda x: printData(x.tolist()), axis=1)
 
 
 def ribit_deribit(A0, i, t):
@@ -238,22 +235,60 @@ def prasange(d, p, s, sw):
     return (long * (1 - p) + (s - long))
 
 
-def mainFunc():
-    age=67
-    ageToRetire=1222
-    gender='m'
+def year_to_retire(age, g):
+    if 17 < age < 111:
+        if g in ['M', 'm']:
+            return 67 - age
+        if g in ['F', 'f']:
+            return 64 - age
+    raise Exception("cannot determine the gender")
+
+
+'''
+row[0] = id
+row[1] = first name
+row[2] = last name
+row[3] = gender
+row[4] = birth date
+row[5] = employment date
+row[6] = last salary
+row[7] = date of closure 14
+row[8] = percentage of closure 14
+row[9] = property
+row[15] = age
+row[16] = seniority
+'''
+
+
+def mainFunc(row):
+
+    age = row[15]
+    gender = row[3]
+    ageToRetire = year_to_retire(age, gender)
+    property = row[9]
+    lastSalary = row[6]
+    p14 = row[8] / 100
+    sd = row[5]
+    d14 = row[7]
+    seniority = row[16]
     sum = 0
     d = 0
-    p = prasange(datetime.datetime(2015, 10, 16), 0.75, 10, datetime.datetime(2013, 10, 16))
+    p = prasange(sd, p14, seniority, d14)
     try:
-        for i in range(ageToRetire-age):
+        for i in range(ageToRetire - age):
             if i % 2 == 0:
                 d += 1
-            sum += to_quit(50000, age, gender, i) + p * to_die(12000, 0.04, d, age, gender, i) + p * to_fired(12000, 0.04, d, age, gender,i)
+            sum += to_quit(property, age, gender, i) + p * to_die(lastSalary, up_salary_rate, d, age, gender,
+                                                                  i) + p * to_fired(
+                lastSalary,
+                up_salary_rate, d,
+                age,
+                gender, i)
     except Exception:
         print(Exception)
         print("error")
+    print(sum)
     return sum
 
-
-print(mainFunc())
+print(data.to_dict())
+#print(list(data.apply(lambda x: mainFunc(x.tolist()), axis=1)))
