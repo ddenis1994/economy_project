@@ -80,90 +80,7 @@ data['seniority'] = data['seniority'].astype(np.int64)
 
 # finish load data
 
-
-def in_rate(t):
-    return pow((1 + up_salary_rate), t + 0.5) / pow((1 + assumption['rate'][t + 1]), t + 0.5)
-
-
-def leftToWork(g, age):
-    if g in ['M', 'm']:
-        return 67 - age
-    if g in ['F', 'f']:
-        return 64 - age
-
-
-def printData(row):
-    mainFunc(leftToWork(row[3], row[15]), row)
-
-
-def toRemainInWork(row, t):
-    if t != 0:
-        return 1 - fire_rate[row[15] + t] - leave_rate[row[15] + t] - to_die_next_year(t, row[15], row[3])
-    else:
-        return 1
-
-
-def dead(t, row):
-    return row[6] * row[16] * (1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
-
-
-def fired(t, row):
-    return row[6] * row[16] * (1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
-
-
-def left(row):
-    return leave_rate[row[15]] + row[9] * toRemainInWork(row)
-
-
-# to die next year at the age : age + t
-def to_die_next_year(t, age, gender):
-    if 17 < age + t < 111:
-        if gender in ['M', 'm']:
-            return manDeathTable['q(x)'][age + t + 1]
-        if gender in ['F', 'f']:
-            return womanDeathTable['q(x)'][age + t + 1]
-    raise Exception("cannot determine the gender")
-
-
-# to be alive from age to age + t
-def tpx(t, age, gender):
-    if gender in ['M', 'm']:
-        return 1 - (manDeathTable['L(x)'][age] - manDeathTable['L(x)'][age + t]) / manDeathTable['L(x)'][age]
-    if gender in ['F', 'f']:
-        return 1 - (womanDeathTable['L(x)'][age] - womanDeathTable['L(x)'][age + t]) / womanDeathTable['L(x)'][age]
-
-
-# def mainFunc(time, row):
-#     sum = 0
-#     for i in range(time):
-#         sum += left(row) + fired(i, row) + dead(i, row)
-#     print(sum)
-#     print("finish row")
-
-
-def ribit_deribit(A0, i, t):
-    return A0 * math.pow((1 + i), t)
-
-
-def FutureValue(A0, i, t):
-    return ribit_deribit(A0, i, t)
-
-
-def PresentValue(At, i, t):
-    return At / (math.pow((1 + i), t))
-
-
-def SerialPresentValue(Ai, i, t):
-    sum = 0
-    for j in range(t):
-        sum += PresentValue(Ai, i, j + 1)
-    return sum
-
-
-# print(dead(0.5, i, 0.2, 18, 'F') + 2000 + fired(0.5, i, 0.2, 18, 'F'))
-
-
-# version 2
+# version 2.5
 
 def deadRate(age, g):
     if 17 < age < 111:
@@ -179,19 +96,16 @@ def toRemain(age, dead):
 
 
 def to_remain_next_year(age, g):
-
     return toRemain(age, deadRate(age, g))
 
 
 # p = property
 # a=age
 # g=gender
-def to_quit(p, a, g, t):
-    a += 1
-    mul = 1
-    for i in range(1, t):
-        mul =mul * to_remain_next_year(a + i, g)
-    return p * mul * leave_rate[a]
+def to_quit(p, a, staying_probability, i):
+    if p <= 0:
+        return 0
+    return p * staying_probability * leave_rate[a + i + 1]
 
 
 '''
@@ -205,19 +119,14 @@ gender =g
 '''
 
 
-# row[6] * row[16] * (1 - row[8]) * in_rate(t) * tpx(t, row[15], row[3]) * to_die_next_year(t, row[15], row[3])
-def to_die(ls, sg, d, a, g, t):
-    mul = 1
-    for i in range(1, t):
-        mul *= to_remain_next_year(a + i, g)
-    return ls * mul * deadRate(a, g) * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]), t + 0.5)
+def to_die(ls, sg, d, a, g, t, staying_probability):
+    return ls * staying_probability * deadRate(a + t, g) * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
+                                                                                      t + 0.5)
 
 
-def to_fired(ls, sg, d, a, g, t):
-    mul = 1
-    for i in range(1, t):
-        mul *= to_remain_next_year(a + i, g)
-    return ls * mul * fire_rate[a] * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]), t + 0.5)
+def to_fired(ls, sg, d, a, t, staying_probability):
+    return ls * staying_probability * fire_rate[a + t] * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
+                                                                                    t + 0.5)
 
 
 '''
@@ -228,12 +137,12 @@ data of recive 14 prasantage =d
 '''
 
 
-def prasange(sw, p, s, d):
-
+def percentage(sw, p, s, d):
+    long = 0
     if d.year != 0:
         long = d.year - sw.year
-    else:
-        long = 0
+    if math.isnan(p):
+        return s
     return (long * (1 - p) + (s - long))
 
 
@@ -261,45 +170,104 @@ row[15] = age
 row[16] = seniority
 '''
 
-
 def mainFunc(row):
+    id = row[0]
+    first_name=row[1]
+    last_name = row[2]
+    empoyment_date = row[5]
     age = row[15]
     gender = row[3]
     ageToRetire = year_to_retire(age, gender)
-    property = row[9]
-    lastSalary = row[6]
-    p14 = row[8] / 100
-    sd = row[5]
-    d14 = row[7]
+    _property = row[9]
+    last_salary = row[6]
+    percentage_of_clause14 = row[8] / 100
+    date_of_clause14 = row[7]
     seniority = row[16]
-    sum = 0
-    d = 0
-    p = prasange(sd, p14, seniority, d14)
+    _sum = 0
+    salary_growth_rate_index = 0
+    new_seniority = percentage(empoyment_date, percentage_of_clause14, seniority, date_of_clause14)
     try:
-        for i in range(ageToRetire):
-            #print(to_quit(property, age, gender, i))
-            # print( to_die(lastSalary, up_salary_rate, d, age, gender,
-            #                                                        i))
-            # print(to_fired(
-            #     lastSalary,
-            #     up_salary_rate, d,
-            #     age,
-            #     gender, i))
-            # print(p)
-            if i % 2 == 0 and i != 0:
-                d += 1
-            sum += to_quit(property, age, gender, i) + p * to_die(lastSalary, up_salary_rate, d, age, gender,
-                                                                  i) + p * to_fired(
-                lastSalary,
-                up_salary_rate, d,
-                age,
-                gender, i)
+        if (ageToRetire > 0):
+            staying_probability = 1
+            for i in range(ageToRetire):
+                if i % 2 == 0 and i != 0:
+                    salary_growth_rate_index += 1
+                staying_probability = staying_probability * to_remain_next_year(age + i, gender)
+                _sum += \
+                    to_quit(_property, age, staying_probability, i) + \
+                    new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, gender, i, staying_probability) + \
+                    new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, age, i, staying_probability)
+        else:
+            return last_salary * seniority
     except Exception:
         print(Exception)
         print("error")
-    print(sum)
-    return sum
+    print("{} : {} {} {}".format(id,first_name,last_name,_sum))
+    return _sum
 
 
-# print(data.to_dict())
-data.apply(lambda x: mainFunc(x.tolist()), axis=1)
+
+x=data.apply(lambda x: mainFunc(x.tolist()), axis=1)
+sums=0
+for i in list(x):
+    sums+=i
+print(sums)
+
+# def retirementAgeGender(Gender):
+#
+#     if Gender == 'm' or 'M':
+#         return 67
+#     if Gender == 'f' or 'F':
+#         return 64
+#
+# def MainFunction(row):
+#     ID=row[0]
+#     FirstName=row[1]
+#     LastName=row[2]
+#     Gender=row[3]
+#     Age=row[15]
+#     EmpoymentDate=row[5]
+#     LastSalary=row[6]
+#     DateOfClause14=row[7]
+#     PercentageOfClause14=row[8]
+#     Property=row[9]
+#     Seniority=row[16]
+#     SalaryGrowthRate=0.04
+#     RetirementAgeGender=retirementAgeGender(Gender)
+#     StayingProbability=1
+#     Sum=0
+#     Clause14Senority=
+#
+#     if RetirementAgeGender-Age<=0:
+#         return LastSalary*Seniority
+#     for t in range (RetirementAgeGender-Age):
+#         if t>0:
+#             StayingProbability = StayingProbability*(1-FiredProbability-QuittingProbability-DyingProbability)
+#             Sum+=Fired(LastSalary, Seniority, PercentageOfClause14, StayingProbability, FiredProbability, DiscountRate, Age, t)+ Quit(StayingProbability, Property, QuitProbability, t, Age)+Died(LastSalary, Seniority, PercentageOfClause14, StayingProbability, DyingProbability, DiscountRate, Age, t)
+#     return sum
+#
+# def Quit(StayingProbability, Property, QuitProbability,t):
+#     return Property*QuitProbability(Age+t)*StayingProbability
+#
+# def Fired(LastSalary, Seniority, PercentageOfClause14, StayingProbability, FiredProbability, DiscountRate, Age, t):
+#     return LastSalary*Seniority*Clause14Senority*(pow(1.04,t+0.5)*StayingProbability*FiredProbability(Age+t))/pow(1+DiscountRate,t+0.5)
+#
+# def Died(LastSalary, Seniority, PercentageOfClause14, StayingProbability, DyingProbability, DiscountRate, Age, t):
+#     return LastSalary*Seniority*Clause14Senority*(pow(1.04,t+0.5)*StayingProbability*DyingProbability(Age+t))/pow(1+DiscountRate,t+0.5)
+#
+# def Clause14Senority():
+#     def prasange(EmpoymentDate, p, s, DateOfClause14):
+#     if DateOfClause14.year != 0:
+#         NewSeniority = DateOfClause14.year - EmpoymentDate.year
+#     else:
+#         NewSeniority = 0
+#     return (NewSeniority * (1 - PercentageOfClause14) + (Seniority - NewSeniority))
+#
+# def QuitProbability(Age):
+#     return go to excel file according to age
+#
+# def FiredProbability(Age):
+#     return go to excel file according to age
+#
+# def DyingProbability(Age):
+#     return go to excel file according to age
