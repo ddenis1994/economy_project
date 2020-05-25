@@ -170,9 +170,10 @@ row[15] = age
 row[16] = seniority
 '''
 
+
 def mainFunc(row):
     id = row[0]
-    first_name=row[1]
+    first_name = row[1]
     last_name = row[2]
     empoyment_date = row[5]
     age = row[15]
@@ -187,7 +188,9 @@ def mainFunc(row):
     salary_growth_rate_index = 0
     new_seniority = percentage(empoyment_date, percentage_of_clause14, seniority, date_of_clause14)
     try:
-        if (ageToRetire > 0):
+        if seniority <= 2:
+            _property = 0
+        if ageToRetire > 0:
             staying_probability = 1
             for i in range(ageToRetire):
                 if i % 2 == 0 and i != 0:
@@ -195,23 +198,24 @@ def mainFunc(row):
                 staying_probability = staying_probability * to_remain_next_year(age + i, gender)
                 _sum += \
                     to_quit(_property, age, staying_probability, i) + \
-                    new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, gender, i, staying_probability) + \
-                    new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, age, i, staying_probability)
+                    new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, gender, i,
+                                           staying_probability) + \
+                    new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, age, i,
+                                             staying_probability)
         else:
             return last_salary * seniority
     except Exception:
         print(Exception)
         print("error")
-    print("{} : {} {} {}".format(id,first_name,last_name,_sum))
+    print("{} : {} {} {} ".format(id, first_name, last_name, _sum))
     return _sum
 
 
-
-x=data.apply(lambda x: mainFunc(x.tolist()), axis=1)
-sums=0
+x = data.apply(lambda x: mainFunc(x.tolist()), axis=1)
+sums = 0
 for i in list(x):
-    sums+=i
-print(sums)
+    sums += i
+print("the total sum : {}".format(sums))
 
 # def retirementAgeGender(Gender):
 #
