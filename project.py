@@ -14,7 +14,8 @@ ages = [
     [(30, 39), 0.10, 0.10],
     [(40, 49), 0.01, 0.07],
     [(50, 59), 0.05, 0.05],
-    [(60, 67), 0.03, 0.03]]
+    [(60, 67), 0.03, 0.03],
+    [(68, 110), 1, 1]]
 for r in ages:
     for x in range(r[0][0], r[0][1] + 1):
         leave_rate[x] = r[1]
@@ -48,7 +49,6 @@ data = pan.read_excel('./data3.xlsx', index_col=0, dtype={'שם ': str,
                       , header=0,
                       sheet_name='data'
                       , parse_dates=True)
-
 
 data.rename(columns={'שם ': 'name',
                      'שם משפחה': 'family',
@@ -89,6 +89,8 @@ def deadRate(age, g):
             return manDeathTable['q(x)'][age + 1]
         if g in ['F', 'f']:
             return womanDeathTable['q(x)'][age + 1]
+        if g in ['final']:
+            return 1
     raise Exception("cannot determine the gender")
 
 
@@ -106,7 +108,8 @@ def to_remain_next_year(age, g):
 def to_quit(p, a, staying_probability, i):
     if p <= 0:
         return 0
-    return p * staying_probability * leave_rate[a + i + 1]
+    temp=leave_rate[a + i + 1]
+    return p * staying_probability * temp
 
 
 '''
@@ -121,12 +124,14 @@ gender =g
 
 
 def to_die(ls, sg, d, a, g, t, staying_probability):
-    return ls * staying_probability * deadRate(a + t, g) * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
+    temp=deadRate(a + t+1, g)
+    return ls * staying_probability * temp * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
                                                                                       t + 0.5)
 
 
 def to_fired(ls, sg, d, a, t, staying_probability):
-    return ls * staying_probability * fire_rate[a + t] * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
+    temp=fire_rate[a + t+1]
+    return ls * staying_probability * temp * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
                                                                                     t + 0.5)
 
 
@@ -192,6 +197,7 @@ def mainFunc(row):
         if seniority <= 2:
             _property = 0
         if ageToRetire > 0:
+            temp = 0
             staying_probability = 1
             for i in range(ageToRetire):
                 if i % 2 == 0 and i != 0:
@@ -203,6 +209,13 @@ def mainFunc(row):
                                            staying_probability) + \
                     new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, age, i,
                                              staying_probability)
+                temp = i
+            _sum += \
+                to_quit(_property, 68, staying_probability, temp) + \
+                new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, 'final', temp,
+                                       staying_probability) + \
+                new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, 68, temp,
+                                         staying_probability)
         else:
             return last_salary * seniority
     except Exception:
