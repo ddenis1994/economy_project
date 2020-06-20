@@ -73,7 +73,8 @@ assumption = pan.read_excel('./data3.xlsx',
                             header=1,
                             index_col=0)
 
-data = (data[data['reason'].isna()]).reset_index()
+# data = (data[data['reason'].isna()]).reset_index()
+data = data.reset_index()
 
 data['seniority'] = (pan.to_datetime(lastDataOfYear) - pan.to_datetime(data['startWork'])) / np.timedelta64(1, 'Y')
 data['seniority'] = data['seniority'].astype(np.int64)
@@ -98,6 +99,7 @@ def toRemain(age, dead):
     return 1 - fire_rate[age] - leave_rate[age] - dead
 
 
+# tPx
 def to_remain_next_year(age, g):
     return toRemain(age, deadRate(age, g))
 
@@ -108,7 +110,7 @@ def to_remain_next_year(age, g):
 def to_quit(p, a, staying_probability, i):
     if p <= 0:
         return 0
-    temp=leave_rate[a + i + 1]
+    temp = leave_rate[a + i + 1]
     return p * staying_probability * temp
 
 
@@ -124,15 +126,15 @@ gender =g
 
 
 def to_die(ls, sg, d, a, g, t, staying_probability):
-    temp=deadRate(a + t+1, g)
+    temp = deadRate(a + t + 1, g)
     return ls * staying_probability * temp * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
-                                                                                      t + 0.5)
+                                                                        t + 0.5)
 
 
 def to_fired(ls, sg, d, a, t, staying_probability):
-    temp=fire_rate[a + t+1]
+    temp = fire_rate[a + t + 1]
     return ls * staying_probability * temp * pow(1 + sg, d + 0.5) / pow((1 + assumption['rate'][t + 1]),
-                                                                                    t + 0.5)
+                                                                        t + 0.5)
 
 
 '''
@@ -159,6 +161,26 @@ def year_to_retire(age, g):
         if g in ['F', 'f']:
             return 64 - age
     raise Exception("cannot determine the gender")
+
+
+def factor(_sum, last_salary, sonority, parentage14):
+    return _sum / last_salary * sonority * parentage14
+
+
+def service_currant(last_selaty, part_year, prantage14, factor):
+    return last_selaty * part_year * prantage14 * factor
+
+
+def service_expance(ageToRetire, age, gandaer):
+    result = 0
+    for i in range(ageToRetire):
+        result += math.pow(to_remain_next_year(age + i, gandaer), i)
+    return result
+
+
+# עלות יייון
+def cost_of(sum, shior_yevon, halot_serot, hatabot):
+    return sum * shior_yevon + (halot_serot - hatabot) * shior_yevon / 2
 
 
 '''
@@ -191,6 +213,7 @@ def mainFunc(row):
     date_of_clause14 = row[7]
     seniority = row[16]
     _sum = 0
+    paid=row[12]
     salary_growth_rate_index = 0
     new_seniority = percentage(empoyment_date, percentage_of_clause14, seniority, date_of_clause14)
     try:
@@ -222,6 +245,13 @@ def mainFunc(row):
         print(Exception)
         print("error")
     print("{} : {} {} {} ".format(id, first_name, last_name, _sum))
+    print(paid)
+    if percentage_of_clause14 != 1 and not math.isnan(percentage_of_clause14):
+        h = round(service_expance(ageToRetire, age, gender))
+        factor2 = factor(_sum, last_salary, seniority, (1 - percentage_of_clause14))
+        sv = service_currant(last_salary, 0.5, (1 - percentage_of_clause14), factor2)
+        temp = cost_of(_sum, assumption['rate'][h], sv, paid)
+        print(temp)
     return _sum
 
 
