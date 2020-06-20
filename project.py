@@ -49,6 +49,7 @@ data = pan.read_excel('./data3.xlsx', index_col=0, dtype={'שם ': str,
                       sheet_name='data'
                       , parse_dates=True)
 
+
 data.rename(columns={'שם ': 'name',
                      'שם משפחה': 'family',
                      'מין': 'sex',
