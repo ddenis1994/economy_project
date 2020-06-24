@@ -147,11 +147,11 @@ data of recive 14 prasantage =d
 
 def percentage(sw, p, s, d):
     long = 0
-    if d.year != 0:
-        long = d.year - sw.year
-    if math.isnan(p):
+    if p == 0:
         return s
-    return (long * (1 - p) + (s - long))
+    if d is not None:
+        long = d.year - sw.year
+    return (s - long) * (1 - p) + long
 
 
 def year_to_retire(age, g):
@@ -210,56 +210,94 @@ def mainFunc(row):
     _property = row[9]
     last_salary = row[6]
     percentage_of_clause14 = row[8] / 100
+    if pan.isna(percentage_of_clause14):
+        percentage_of_clause14 = 0
     date_of_clause14 = row[7]
+    if pan.isna(date_of_clause14):
+        date_of_clause14 = None
     seniority = row[16]
-    _sum = 0
-    paid=row[12]
+
+    paid = row[12]
+    if math.isnan(paid):
+        paid = 0
+    zak = row[13]
+    if math.isnan(zak):
+        zak = 0
+    leave_data = row[11]
+    if isinstance(leave_data, str or pan.NaT or math.nan):
+        leave_data = None
     salary_growth_rate_index = 0
     new_seniority = percentage(empoyment_date, percentage_of_clause14, seniority, date_of_clause14)
-    try:
-        if seniority <= 2:
-            _property = 0
-        if ageToRetire > 0:
-            temp = 0
-            staying_probability = 1
-            for i in range(ageToRetire):
-                if i % 2 == 0 and i != 0:
-                    salary_growth_rate_index += 1
-                staying_probability = staying_probability * to_remain_next_year(age + i, gender)
+    start_value = 200000
+    result = [id, start_value]
+    _sum = 0
+    if leave_data is None:
+        try:
+            if seniority <= 2:
+                _property = 0
+            if ageToRetire > 0:
+                temp = 0
+                staying_probability = 1
+                for i in range(ageToRetire):
+                    if i % 2 == 0 and i != 0:
+                        salary_growth_rate_index += 1
+                    staying_probability = staying_probability * to_remain_next_year(age + i, gender)
+                    quit_value=to_quit(_property, age, staying_probability, i)
+                    die_value=new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, gender, i,
+                                               staying_probability)
+                    fire_value=new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, age, i,
+                                                 staying_probability)
+                    _sum += \
+                        to_quit(_property, age, staying_probability, i) + \
+                        new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, gender, i,
+                                               staying_probability) + \
+                        new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, age, i,
+                                                 staying_probability)
+                    temp = i
                 _sum += \
-                    to_quit(_property, age, staying_probability, i) + \
-                    new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, gender, i,
+                    to_quit(_property, 68, staying_probability, temp) + \
+                    new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, 'final', temp,
                                            staying_probability) + \
-                    new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, age, i,
+                    new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, 68, temp,
                                              staying_probability)
-                temp = i
-            _sum += \
-                to_quit(_property, 68, staying_probability, temp) + \
-                new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, 'final', temp,
-                                       staying_probability) + \
-                new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, 68, temp,
-                                         staying_probability)
-        else:
-            return last_salary * seniority
-    except Exception:
-        print(Exception)
-        print("error")
-    print("{} : {} {} {} ".format(id, first_name, last_name, _sum))
-    print(paid)
-    if percentage_of_clause14 != 1 and not math.isnan(percentage_of_clause14):
+            else:
+                return last_salary * seniority
+        except Exception:
+            print(Exception)
+            print("error")
+    # print("{} : {} {} {} ".format(id, first_name, last_name, _sum))
+    # print(paid)
+    if percentage_of_clause14 != 1:
         h = round(service_expance(ageToRetire, age, gender))
         factor2 = factor(_sum, last_salary, seniority, (1 - percentage_of_clause14))
         sv = service_currant(last_salary, 0.5, (1 - percentage_of_clause14), factor2)
-        temp = cost_of(_sum, assumption['rate'][h], sv, paid)
-        print(temp)
-    return _sum
+        result += [sv]
+        temp2 = 0
+        if h != 0:
+            temp2 += cost_of(_sum, assumption['rate'][h], sv, paid)
+        else:
+            temp2 += cost_of(_sum, 1, sv, paid)
+        result += [temp2]
+        hatavot = 0
+        if not math.isnan(paid):
+            hatavot += paid
+        if not math.isnan(zak):
+            hatavot += zak
+        result += [hatavot]
+        result += [_sum]
+        result += [_sum - start_value - sv - temp2 + hatavot]
+    if len(result) > 3:
+        print(result)
+    return result
 
 
+t = data.to_dict()
 x = data.apply(lambda x: mainFunc(x.tolist()), axis=1)
-sums = 0
+# sums = []
 for i in list(x):
-    sums += i
-print("the total sum : {}".format(sums))
+    print(i)
+#     sums += [i]
+# print("the total sum : {}".format(sums))
 
 # def retirementAgeGender(Gender):
 #
