@@ -275,7 +275,9 @@ def mainFunc(row):
                     staying_probability = 1
                     for yearToRetire in range(ageToRetire):
                         if yearToRetire % 2 == 0 and yearToRetire != 0:
-                            salary_growth_rate_index += 0.04
+                            salary_growth_rate_index = 0.04
+                        else:
+                            salary_growth_rate_index = 0
                         # not to change in first iteration
                         if yearToRetire != 0:
                             staying_probability *= to_remain_next_year(age + yearToRetire, gender)
@@ -294,19 +296,12 @@ def mainFunc(row):
                         # the yearly sum for the worker
                         _sum += \
                             quit_value + die_value + fire_value
-                        print(_sum,yearToRetire)
-                    print("end")
-                else:
-                    _sum = 2
-            # _sum += \
-            #     quit_value + die_value + fire_value
-            # temp = yearToRetire
-            # _sum += \
-            #     to_quit(_property, 68, staying_probability, temp) + \
-            #     new_seniority * to_die(last_salary, up_salary_rate, salary_growth_rate_index, age, 'final', temp,
-            #                            staying_probability) + \
-            #     new_seniority * to_fired(last_salary, up_salary_rate, salary_growth_rate_index, 68, temp,
-            #                              staying_probability)
+                    # last round need to add something
+                    staying_probability *= to_remain_next_year(age + yearToRetire+1, gender)
+                    fire_value = to_fired2(last_salary, localSeniority, staying_probability,
+                                           salary_growth_rate_index,
+                                           yearToRetire, 1)
+                    _sum += fire_value
 
         except Exception:
             print(Exception)
@@ -317,25 +312,25 @@ def mainFunc(row):
     # print("{} : {} {} {} ".format(_id, first_name, last_name, _sum))
     # print(paid)
     result += [_sum]
-    # if percentage_of_clause14 != 1:
-    #     h = round(service_expance(ageToRetire, age, gender))
-    #     factor2 = factor(_sum, last_salary, seniority, (1 - percentage_of_clause14))
-    #     sv = service_currant(last_salary, 0.5, (1 - percentage_of_clause14), factor2)
-    #     result += [sv]
-    #     temp2 = 0
-    #     if h != 0:
-    #         temp2 += cost_of(_sum, assumption['rate'][h], sv, paid)
-    #     else:
-    #         temp2 += cost_of(_sum, 1, sv, paid)
-    #     result += [temp2]
-    #     hatavot = 0
-    #     if not math.isnan(paid):
-    #         hatavot += paid
-    #     if not math.isnan(zak):
-    #         hatavot += zak
-    #     result += [hatavot]
-    #     result += [_sum]
-    #     result += [_sum - start_value - sv - temp2 + hatavot]
+    if percentage_of_clause14 != 1:
+        h = round(service_expance(ageToRetire, age, gender))
+        factor2 = factor(_sum, last_salary, seniority, (1 - percentage_of_clause14))
+        sv = service_currant(last_salary, 0.5, (1 - percentage_of_clause14), factor2)
+        result += [sv]
+        temp2 = 0
+        if h != 0:
+            temp2 += cost_of(_sum, assumption['rate'][h], sv, paid)
+        else:
+            temp2 += cost_of(_sum, 1, sv, paid)
+        result += [temp2]
+        hatavot = 0
+        if not math.isnan(paid):
+            hatavot += paid
+        if not math.isnan(zak):
+            hatavot += zak
+        result += [hatavot]
+        result += [_sum]
+        result += [_sum - start_value - sv - temp2 + hatavot]
 
     return result
 
